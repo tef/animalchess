@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <title>Dōbutsu shōgi</title>
+  
+  <script type='text/javascript' src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js'></script>
+  <script type="text/javascript" src="http://code.jquery.com/ui/1.8.18/jquery-ui.min.js"></script>
+  
+  <style type='text/css'>
+
+.board {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor:pointer;
+}    
+.capture-player, .capture-opponent {
+    width: 120px;
+    height: 40px;
+    vertical-align: center;
+    text-align: center;
+    border: 1px dotted black;
+}
+.square {
+    width: 40px;
+    height: 40px;
+    vertical-align: center;
+    text-align: center;
+    border: 1px dotted rgba(255,0,0,0.2);
+}
+.legal-move {
+    border: 1px solid blue;
+}
+.piece {
+    font-size: 30px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    display: inline-block;
+}
+
+.opponent {
+    -webkit-transform: rotate(180deg);
+    -moz-transform: rotate(180deg);
+    -o-transform: rotate(180deg);
+    -ms-transform: rotate(180deg);
+    transform: rotate(180deg);
+  
+}
+.row:nth-child(odd) .square:nth-child(even), .row:nth-child(even) .square:nth-child(odd) {
+    background-color: rgba(0,0,255, 0.1);
+}
+.row:nth-child(odd) .square:nth-child(odd), .row:nth-child(even) .square:nth-child(even){
+    background-color: rgba(0,80,200, 0.2);
+}
+
+  </style>
+  
+
+
+<script type='text/javascript'>//<![CDATA[ 
+var pieces = {
+    'pawn' : '🐱',
+    'rook' : '🐰',
+    'bishop' : '🐙' , 
+    'king' : '🐶',
+    'queen' : '🐯',
+}
+$(window).load(function(){
+
+function Board(selector) {
+    $('<tr>').addClass('row').append(
+        $('<td>').attr('colspan', 3).addClass('capture-opponent').text(' ')
+    ).appendTo(selector)
+
+    for (var r = 1; r<=4; r++) {
+        row = $('<tr>').addClass('row')
+        for (var c = 1; c<=3; c++) {
+            var td = $('<td>').addClass('square').addClass('r'+r+'c'+c);
+            td.prop('pos', [r,c])
+            row.append(td);
+
+        }
+        $(selector).append(row);
+    }
+    $('<tr>').addClass('row').append(
+        $('<td>').attr('colspan', 3).addClass('capture-player')
+    ).appendTo(selector)
+
+    $('.square').droppable({
+        tolerance: "intersect",
+        accept: function(ui) {
+            var sq = $(this).prop('pos');
+            var pc = $(ui).prop('pos');
+            var opponent = $(ui).prop('opponent');
+            var direction = opponent ? +1 : -1;
+            var name = $(ui).prop('name')
+            var sq_r=sq[0], sq_c=sq[1];
+            var pc_r=pc[0], pc_c=pc[1];
+            var others = $(this).children('.piece')
+            var ret = false;
+
+            if (others.length > 0 && others.prop('opponent') == opponent) {
+              ret = false;
+            } else if (pc == "captured" && others.length ==0) {
+              ret = true;
+            } else if (Math.abs(sq_c-pc_c) > 1 || Math.abs(sq_r-pc_r) > 1) {
+               ret == false;
+            } else if (name == 'pawn') {
+               ret =  (sq_c == pc_c) && ((sq_r == pc_r) || (sq_r == pc_r + direction));
+            } else if (name == 'queen') { 
+               ret =  (sq_r == pc_r) || (sq_r == pc_r + direction) || (sq_c == pc_c);
+            } else if (name == 'rook') { 
+               ret =  (sq_r == pc_r) || (sq_c == pc_c);
+            } else if (name == 'bishop') { 
+               ret =  (sq_r != pc_r) && (sq_c != pc_c);
+            } else if (name == 'king') { 
+               ret =  true;
+            }
+            if (ret) {
+                $(this).addClass('legal-move')
+            } else {
+                $(this).removeClass('legal-move')
+            }
+            return ret;
+        },
+        drop: function(ev, ui) {
+
+            var piece = ui.draggable;
+            var name = piece.prop('name')
+            var opponent = piece.prop('opponent')
+            var others = $(this).children('.piece').eq(0);
+
+            var final_row = opponent ? 4 : 1
+            if (name == "pawn" && final_row == $(this).prop('pos')[0]) {
+                piece.text(pieces["queen"]);
+                piece.prop('name', "queen");
+            } 
+            piece.prop('pos', $(this).prop('pos'));
+            piece.detach().css({top: 0, left: 0});
+           
+            if (others) {
+                console.log('taking')
+                var other = others.detach().css({top: 0, left: 0});
+                other.prop('opponent', opponent);
+                if (opponent) {
+                    other.addClass('opponent');
+                } else {
+                    other.removeClass('opponent');
+                }
+                other.prop('pos', 'captured');
+                if (other.prop('name') == "queen") {
+                    other.text(pieces["pawn"]);
+                    other.prop('name', "pawn");
+                }
+                $(opponent?'.capture-opponent':'.capture-player').append(other)
+            }
+            piece.appendTo(this);
+            // promotion, capture, if move actually happened
+        }
+    });   
+}
+
+
+
+function setup(board) {
+    function place(row, col, name, opponent) {
+            var p = $('<div>').addClass('piece').text(pieces[name]);
+            p.prop('name', name);
+            p.prop('opponent', opponent);
+            p.prop('pos',[row,col]);
+
+            if (opponent) {p.addClass('opponent')}
+
+            $(board+' .r'+row+'c'+col).append(p)
+    }
+    $(board+' .piece').remove();
+    place(1,1, 'rook', true);
+    place(1,2,'king', true);
+    place( 1,3,'bishop', true);
+    place( 2,2,'pawn', true);
+    place(4,3,'rook', false);
+    place(4,2,'king', false);
+    place(4,1,'bishop', false);
+    place(3,2,'pawn', false);
+
+    $('.piece').draggable({
+        revert: 'invalid',
+        snap: "inner",
+        stack: "div",
+        // todo: highlight where each piece can move
+        start: function () {
+            
+        },
+        stop: function () {
+            $('.legal-move').removeClass('legal-move')
+        },
+    });
+}
+
+Board('.board');
+setup('.board');
+
+});//]]>  
+
+</script>
+
+
+</head>
+<body>
+  <table class="board">
+  </table>    
+</body>
+
+
+</html>
+
