@@ -138,9 +138,9 @@ function Board(selector) {
             var name = piece.prop('name')
             var opponent = piece.prop('opponent')
             var others = $(this).children('.piece').eq(0);
-
+	    var pos = piece.prop('pos')
             var final_row = opponent ? 4 : 1
-            if (name == "pawn" && final_row == $(this).prop('pos')[0]) {
+            if (name == "pawn" && final_row == $(this).prop('pos')[0] && pos != "captured") {
                 piece.text(pieces["queen"]);
                 piece.prop('name', "queen");
             } 
